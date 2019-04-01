@@ -1,0 +1,7 @@
+#include <Fragmentarium/3D.frag>
+
+uniform samplerCube CubeMap; //! texture["Shadertoy/res/cube00_0.jpg"]
+
+vec3 color(vec3 ro, vec3 rd) {
+	return textureCube(CubeMap, rd).xyz;
+}

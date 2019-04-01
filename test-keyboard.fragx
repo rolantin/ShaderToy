@@ -1,0 +1,40 @@
+uniform sampler2D MyKeyboardTex; //! keyboard[]
+
+bool isPressed(float keyCode) {
+	keyCode = (keyCode + 0.5) / 256.0;
+	vec2 uv = vec2(keyCode, 0.25);
+	float key = texture2D(MyKeyboardTex, uv).r;
+
+	return key > 0.0;
+}
+
+bool isToggled(float keyCode) {
+	keyCode = (keyCode + 0.5) / 256.0;
+	vec2 uv = vec2(keyCode, 0.75);
+	float key = texture2D(MyKeyboardTex, uv).r;
+
+	return key > 0.0;
+}
+
+/*
+ * Keyboard codes are compatible with JavaScript.
+ * List of most notable codes can be found here:
+ * http://www.cambiaresearch.com/articles/15/javascript-char-codes-key-codes
+ */
+#define KEY_A 65.0
+#define KEY_1 49.0
+#define KEY_RIGHT_ARROW 39.0
+
+void main() {
+	vec3 col = vec3(0.0);
+	if (isToggled(KEY_A)) {
+		col.r = 1.0;
+	}
+	if (isPressed(KEY_1)) {
+		col.g = 1.0;
+	}
+	if (!isPressed(KEY_RIGHT_ARROW)) {
+		col.b = 1.0;
+	}
+	gl_FragColor = vec4(col, 1.0);
+}

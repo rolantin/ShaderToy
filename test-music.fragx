@@ -1,0 +1,99 @@
+uniform vec3 iResolution;           // viewport resolution (in pixels)
+uniform float iGlobalTime;          // shader playback time (in seconds)
+
+uniform sampler2D MusicTex; //! music["Shadertoy/res/mzk02.mp3"]
+
+uniform bool ShowTex; //! checkbox[false]
+
+/**
+ * Gets frequency spectrum of currently played audio file.
+ *
+ * @param x - should vary between 0.0 and 1.0.
+ * @return frequency value, normalized to 0.0-1.0 range
+ */
+float getFrequency(float x) {
+	// "0.25" is the center of the first texture row
+	return texture(MusicTex, vec2(x, 0.25)).r;
+}
+
+/**
+ * Gets waveform of currently played audio file.
+ *
+ * @param x - should vary between 0.0 and 1.0.
+ * @return waveform value (amplitude), normalized to 0.0-1.0 range
+ */
+float getWaveform(float x) {
+	// "0.75" is the center of the second texture row
+	return texture(MusicTex, vec2(x, 0.75)).r;
+}
+
+/**
+ * A texture with drawn frequency spectrum and waveform.
+ */
+vec3 tex(vec2 uv) {
+	vec3 col = vec3(0.58, 0.70, 0.74); // background
+
+	vec2 px = 1.0 / iResolution.xy; // pixel size
+	float sf = px.y * 6.0; // smoothing factor
+
+	{ /* frequency */
+		float val = getFrequency(uv.x);
+		val *= 0.5;
+
+		col = mix(vec3(0.0, 0.36, 0.65), col, smoothstep(val, val + sf, uv.y - 0.5));
+	}
+
+	{ /* Waveform */
+		float val = getWaveform(uv.x);
+		val *= 0.5;
+
+		col = mix(vec3(0.74, 0.90, 1.0), col, smoothstep(val, val + sf, uv.y));
+	}
+	return col;
+}
+
+/**
+ * Monochromatic texture with offset.
+ */
+float mtex(vec2 uv, float dx, float dy) {
+	return tex(uv + vec2(dx, dy)).x;
+}
+
+/**
+ * Sobel filter. It is used for edge detection.
+ * [ See http://en.wikipedia.org/wiki/Sobel_operator ]
+ */
+vec3 sobel(vec2 uv, float dx, float dy) {
+	float tl = mtex(uv, -dx, dy);   // top-left
+	float cl = mtex(uv, -dx, 0.0);  // center-left
+	float bl = mtex(uv, -dx, -dy);  // bottom-left
+
+	float tm = mtex(uv, 0.0, dy);   // top-middle
+	float bm = mtex(uv, 0.0, -dy);  // bottom-middle
+
+	float tr = mtex(uv, dx, dy);    // top-right
+	float cr = mtex(uv, dx, 0.0);   // center-right
+	float br = mtex(uv, dx, -dy);   // bottom-right
+
+	float x = dot(vec3(1.0, 2.0, 1.0),    vec3(tl, cl, bl))
+			+ dot(vec3(-1.0, -2.0, -1.0), vec3(tr, cr, br));
+
+	float y = dot(vec3(-1.0, -2.0, -1.0), vec3(tl, tm, tr))
+			+ dot(vec3(1.0, 2.0, 1.0),    vec3(bl, bm, br));
+
+	float val = sqrt((x * x) + (y * y));
+
+	return vec3(val);
+}
+
+void main() {
+	vec2 uv = gl_FragCoord.xy / iResolution.xy;
+	vec3 col;
+
+	if (ShowTex) {
+		col = tex(uv);
+	} else {
+		col = sobel(uv, 1.0 / iResolution.x, 1.0 / iResolution.y);
+	}
+	gl_FragColor = vec4(col, 1.0);
+}

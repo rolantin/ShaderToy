@@ -1,0 +1,32 @@
+#include <Fragmentarium/2D.frag>
+
+uniform float MinArmDistance; //! slider[0.01, 0.03, 0.5]
+
+uniform vec3 CircleColor; //! color[0.8, 0.75, 0.9]
+uniform vec3 BgColor; //! color[0.8, 0.9, 0.75]
+uniform vec3 ArmColor; //! color[0.9, 0.9, 1.0]
+
+uniform vec2 Direction; //! direction[1, 0]
+
+
+vec3 color(vec2 p) {
+	float len = length(p);
+	if (len > 1.0) {
+		return BgColor;
+	}
+	float dx = Direction.x;
+	float dy = Direction.y;
+
+	float dist = abs(dx * p.y - dy * p.x) / sqrt(dx * dx + dy * dy);
+
+	if (dist > MinArmDistance) {
+		return CircleColor;
+	}
+
+	float dot = p.x * dx + p.y * dy;
+	if (dot > 0) {
+		return ArmColor;
+	}
+
+	return CircleColor;
+}

@@ -1,0 +1,38 @@
+// See http://synthclipse.sourceforge.net/user_guide/recording.html
+
+#define NOT_RECORDING   0
+#define SAVE_FORMAT_PNG 1
+#define SAVE_FORMAT_JPG 2
+#define SAVE_FORMAT_BMP 3
+#define SAVE_FORMAT_EXR 4
+
+/**
+ * This is automatically set by Synthclipse.
+ * Only during recording is non-zero.
+ */
+uniform int SaveFormat;
+
+void main() {
+	vec3 col;
+
+	switch (SaveFormat) {
+	case NOT_RECORDING:
+		col = vec3(0.0, 0.0, 0.0);
+		break;
+	case SAVE_FORMAT_PNG:
+		col = vec3(1.0, 0.0, 0.0);
+		break;
+	case SAVE_FORMAT_JPG:
+		col = vec3(0.0, 1.0, 0.0);
+		break;
+	case SAVE_FORMAT_BMP:
+		col = vec3(0.0, 0.0, 1.0);
+		break;
+	case SAVE_FORMAT_EXR:
+		col = vec3(1.0, 1.0, 1.0);
+		break;
+	default:
+		col = vec3(0.0, 1.0, 1.0);
+	}
+	gl_FragColor = vec4(col, 1.0);
+}

@@ -1,0 +1,247 @@
+/*!
+ * <info>
+ *  This shader was written by Mikael Hvidtfeldt Christensen
+ *  (mail: mikael (at) hvidtfeldts.net) and comes from his own
+ *  creation: Fragmentarium - cross-platform application for exploring
+ *  pixel based graphics on the GPU (http://syntopia.github.io/Fragmentarium/).
+ *
+ * Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
+ * (http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US).
+ * </info>
+ */
+
+#define providesInit
+
+#include <Fragmentarium/DE-Raytracer.frag>
+#include <Fragmentarium/MathUtils.glsl>
+
+//! <group name="Mandelbulb"/>
+
+// Number of fractal iterations.
+uniform int Iterations; //! slider[0,9,100]
+// Number of color iterations.
+uniform int ColorIterations; //! slider[0,9,100]
+// Mandelbulb exponent (8 is standard)
+uniform float Power; //! slider[0,8,16]
+// Bailout radius
+uniform float Bailout; //! slider[0,5,30]
+// Alternate is slightly different, but looks more like a Mandelbrot for Power=2
+uniform bool AlternateVersion; //! checkbox[false]
+uniform vec3 RotVector; //! slider[(0,0,0),(1,1,1),(1,1,1)]
+uniform float RotAngle; //! slider[0.00,0,180]
+uniform bool Julia; //! checkbox[false]
+uniform vec3 JuliaC; //! slider[(-2,-2,-2),(0,0,0),(2,2,2)]
+
+mat3 rot;
+uniform float time;
+void init() {
+	rot = rotationMatrix3(normalize(RotVector), RotAngle + time * 10.0);
+}
+
+// This is my power function, based on the standard spherical coordinates as defined here:
+// http://en.wikipedia.org/wiki/Spherical_coordinate_system
+//
+// It seems to be similar to the one Quilez uses:
+// http://www.iquilezles.org/www/articles/mandelbulb/mandelbulb.htm
+//
+// Notice the north and south poles are different here.
+void powN1(inout vec3 z, float r, inout float dr) {
+	// extract polar coordinates
+	float theta = acos(z.z / r);
+	float phi = atan(z.y, z.x);
+	dr = pow(r, Power - 1.0) * Power * dr + 1.0;
+
+	// scale and rotate the point
+	float zr = pow(r, Power);
+	theta = theta * Power;
+	phi = phi * Power;
+
+	// convert back to cartesian coordinates
+	z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+}
+
+// This is a power function taken from the implementation by Enforcer:
+// http://www.fractalforums.com/mandelbulb-implementation/realtime-renderingoptimisations/
+//
+// I cannot follow its derivation from spherical coordinates,
+// but it does give a nice mandelbrot like object for Power=2
+void powN2(inout vec3 z, float zr0, inout float dr) {
+	float zo0 = asin(z.z / zr0);
+	float zi0 = atan(z.y, z.x);
+	float zr = pow(zr0, Power - 1.0);
+	float zo = zo0 * Power;
+	float zi = zi0 * Power;
+	dr = zr * dr * Power + 1.0;
+	zr *= zr0;
+	z = zr * vec3(cos(zo) * cos(zi), cos(zo) * sin(zi), sin(zo));
+}
+
+// Compute the distance from `pos` to the Mandelbox.
+float DE(vec3 pos) {
+	vec3 z = pos;
+	float r;
+	float dr = 1.0;
+	int i = 0;
+	r = length(z);
+	while (r < Bailout && (i < Iterations)) {
+		if (AlternateVersion) {
+			powN2(z, r, dr);
+		} else {
+			powN1(z, r, dr);
+		}
+		z += (Julia ? JuliaC : pos);
+		r = length(z);
+		z *= rot;
+		if (i < ColorIterations)
+			orbitTrap = min(orbitTrap, abs(vec4(z.x, z.y, z.z, r * r)));
+		i++;
+	}
+//	if ((type==1) && r<Bailout) return 0.0;
+	return 0.5 * log(r) * r / dr;
+	/*
+	 Use this code for some nice intersections (Power=2)
+	 float a =  max(0.5*log(r)*r/dr, abs(pos.y));
+	 float b = 1000;
+	 if (pos.y>0)  b = 0.5*log(r)*r/dr;
+	 return min(min(a, b),
+	 max(0.5*log(r)*r/dr, abs(pos.z)));
+	 */
+}
+
+/*!
+ * <preset name="Default" program="BufferShader.frag">
+ *  Brightness = 1.0
+ *  Contrast = 1.0
+ *  Exposure = 0.6522
+ *  Gamma = 2.08335
+ *  Saturation = 1.0
+ *  ToneMapping = 3
+ * </preset>
+ */
+
+/*!
+ * <preset name="Default">
+ *  AO = 0.0, 0.0, 0.0, 0.85185
+ *  AlternateVersion = true
+ *  AntiAliasScale = 2.0
+ *  Aperture = 0.0
+ *  BackgroundColor = 0.607843, 0.866667, 0.560784, 1.0
+ *  Bailout = 6.279
+ *  BaseColor = 1.0, 1.0, 1.0, 1.0
+ *  CamLight = 1.0, 1.0, 1.0, 1.0
+ *  CamLightMin = 0.12121
+ *  ColorIterations = 8
+ *  CycleColors = false
+ *  Cycles = 4.04901
+ *  DebugSun = false
+ *  Detail = -2.84956
+ *  DetailAO = -1.35716
+ *  Direction = -0.6033646, 0.12804443, 0.78711873
+ *  Dither = 0.51754
+ *  EnableFloor = false
+ *  EquiRectangular = false
+ *  Eye = 1.709384, -0.3627609, -2.2299752
+ *  FOV = 0.62536
+ *  FloorColor = 1.0, 1.0, 1.0, 1.0
+ *  FloorHeight = 0.0
+ *  FloorNormal = 0.0, 0.0, 0.0
+ *  FocalPlane = 1.0
+ *  Fog = 0.0
+ *  FudgeFactor = 1.0
+ *  Gamma = 1.0
+ *  GaussianWeight = 1.0
+ *  Glow = 1.0, 1.0, 1.0, 0.43836
+ *  GlowMax = 52
+ *  GradientBackground = 0.3261
+ *  HardShadow = 0.35385
+ *  Iterations = 12
+ *  Julia = false
+ *  JuliaC = 0.0, 0.0, 0.0
+ *  MaxRaySteps = 164
+ *  NormalBackStep = 1.0
+ *  OrbitStrength = 0.14286
+ *  Power = 8.0
+ *  Reflection = 0.0
+ *  RotAngle = 0.0
+ *  RotVector = 1.0, 1.0, 1.0
+ *  ShadowSoft = 12.5806
+ *  Specular = 1.6456
+ *  SpecularExp = 16.364
+ *  SpecularMax = 10.0
+ *  SpotLight = 1.0, 1.0, 1.0, 1.0
+ *  SpotLightDir = 0.63626, 0.5
+ *  Up = 0.68605286, 0.5865321, 0.43047866
+ *  X = 1.0, 1.0, 1.0, 1.0
+ *  Y = 0.345098, 0.666667, 0.0, 0.02912
+ *  Z = 1.0, 0.666667, 0.0, 1.0
+ * </preset>
+ */
+
+/*!
+ * <preset name="Octobulb" program="BufferShader.frag">
+ *  Brightness = 1.0
+ *  Contrast = 1.0
+ *  Exposure = 0.78
+ *  Gamma = 2.08335
+ *  Saturation = 1.0
+ *  ToneMapping = 3
+ * </preset>
+ */
+
+/*!
+ * <preset name="Octobulb">
+ *  AO = 0.0, 0.0, 0.0, 0.7
+ *  AlternateVersion = true
+ *  AntiAliasScale = 2.0
+ *  Aperture = 0.0
+ *  BackgroundColor = 0.666667, 0.666667, 0.498039, 1.0
+ *  Bailout = 6.279
+ *  BaseColor = 1.0, 1.0, 1.0, 1.0
+ *  CamLight = 1.0, 1.0, 1.0, 0.23656
+ *  CamLightMin = 0.15151
+ *  ColorIterations = 6
+ *  CycleColors = true
+ *  Cycles = 7.03524
+ *  DebugSun = false
+ *  Detail = -2.47786
+ *  DetailAO = -0.21074
+ *  Direction = -0.9269457, 0.28808352, 0.24037421
+ *  Dither = 0.5
+ *  EnableFloor = false
+ *  EquiRectangular = false
+ *  Eye = 1.9309076, -0.6001028, -0.50072014
+ *  FOV = 0.62536
+ *  FloorColor = 1.0, 1.0, 1.0, 1.0
+ *  FloorHeight = 0.0
+ *  FloorNormal = 0.0, 0.0, 0.0
+ *  FocalPlane = 1.0
+ *  Fog = 0.60402
+ *  FudgeFactor = 1.0
+ *  Gamma = 1.0
+ *  GaussianWeight = 1.0
+ *  Glow = 0.415686, 1.0, 0.101961, 0.18421
+ *  GlowMax = 52
+ *  GradientBackground = 0.5
+ *  HardShadow = 0.72308
+ *  Iterations = 14
+ *  Julia = false
+ *  JuliaC = 0.0, 0.0, 0.0
+ *  MaxRaySteps = 164
+ *  NormalBackStep = 1.0
+ *  OrbitStrength = 0.62376
+ *  Power = 8.18304
+ *  R = 0.4, 0.7, 1.0, 0.36508
+ *  Reflection = 0.0
+ *  RotAngle = 77.8374
+ *  RotVector = 1.0, 0.0, 0.0
+ *  ShadowSoft = 12.5806
+ *  Specular = 1.0
+ *  SpecularExp = 27.082
+ *  SpecularMax = 10.0
+ *  SpotLight = 1.0, 1.0, 1.0, 0.94565
+ *  SpotLightDir = 0.5619, 0.18096
+ *  Up = 0.37519553, 0.71107864, 0.594639
+ *  Y = 0.666667, 0.666667, 0.498039, 0.86886
+ * </preset>
+ */
+
